@@ -23,15 +23,14 @@ spell = SpellChecker()
 
 
 def assess_lexical_quality(text):
-    """
-    Assesses the lexical quality of a given text.
+    # Ensure 'text' is a string
+    if not isinstance(text, str):
+        raise ValueError("Input must be a string")
 
-    :param text: str, the text to assess
-    :return: dict, a dictionary containing the spelling accuracy, grammar quality, readability, and topic coherence
-    """
+    # Split the text into words
+    words = text.split()  # No arguments needed for splitting by whitespace
 
     # Spelling accuracy
-    words = text.split()
     misspelled = spell.unknown(words)
     spelling_accuracy = 1 - len(misspelled) / len(words)
 
@@ -49,7 +48,7 @@ def assess_lexical_quality(text):
     # Topic coherence using spaCy
     doc = nlp(text)
     sentences = list(doc.sents)
-    topic_coherence = 0.0
+    topic_coherence = 0.5
     if len(sentences) > 1:
         # Calculate average similarity between consecutive sentences
         similarities = [
