@@ -104,7 +104,7 @@ def encode_texts_in_batches(texts, transformer, batch_size=32):
 
 if __name__ == '__main__':
     # Load AG News data with a quarter of the dataset
-    train_labels, train_texts, test_labels, test_texts, vocab = load_ag_news_data(fraction=0.01)
+    train_labels, train_texts, test_labels, test_texts, vocab = load_ag_news_data(text_noise_level=0.1, fraction=0.005)
     print("Loaded a quarter of the AG News dataset.")
 
     # Convert token IDs back to strings
@@ -140,32 +140,51 @@ if __name__ == '__main__':
     label_issues = cl.find_label_issues(X=train_texts, labels=train_labels)
     print("Found label issues in the training data.")
 
-    # Train a more robust model from noisy labels
-    model.fit(X=train_texts, y=train_labels)
-    print("Trained a more robust model from noisy labels.")
+    # Get lexical quality scores
+    lexical_quality_scores = get_lexical_quality_scores(original_train_texts)
+    print("Calculated lexical quality scores for train texts.")
 
-    # Predict using the test data
-    preds = model.predict(test_texts)
-    acc_og = accuracy_score(test_labels, preds)
-    print(f"\nTest accuracy of original model: {acc_og}")
+    # Original model performance
+    cl.fit(X=train_texts, labels=train_labels)
+    pred_labels_before = cl.predict(test_texts)
+    acc_before = accuracy_score(test_labels, pred_labels_before)
+    print(f"Test accuracy before adjusting confidences: {acc_before}")
 
-    # Fit cleanlab model before adjusting confidences
-    cl.fit(X=train_texts, labels=train_labels, label_issues=cl.get_label_issues())
-    pred_labels_before_adjustment = cl.predict(test_texts)
-    acc_cl_before = accuracy_score(test_labels, pred_labels_before_adjustment)
-    print(f"Test accuracy of cleanlab's model before adjusting confidences: {acc_cl_before}")
-
-    # Adjust confidence scores using lexical quality
+    # Adjust confidence scores
     original_confidences = label_issues["label_quality"].to_numpy()
-    print(f"Original confidences: {original_confidences}")
     adjusted_confidences = adjust_confidence_with_lexical_quality(original_confidences, lexical_quality_scores)
-    print(f"Adjusted confidences: {adjusted_confidences}")
+
+    print(f"Original confidences - Min: {min(original_confidences)}, Max: {max(original_confidences)}, Mean: {np.mean(original_confidences)}")
+    print(f"Adjusted confidences - Min: {min(adjusted_confidences)}, Max: {max(adjusted_confidences)}, Mean: {np.mean(adjusted_confidences)}")
 
     # Update label issues with adjusted confidences
-    label_issues["adjusted_label_quality"] = adjusted_confidences
+    label_issues["label_quality"] = adjusted_confidences
 
-    # Fit cleanlab model after adjusting confidences
-    cl.fit(X=train_texts, labels=train_labels, label_issues=label_issues)
-    pred_labels_after_adjustment = cl.predict(test_texts)
-    acc_cl_after = accuracy_score(test_labels, pred_labels_after_adjustment)
-    print(f"Test accuracy of cleanlab's model after adjusting confidences: {acc_cl_after}")
+    # Retrain the model using adjusted confidences
+    # 1. Create a new instance of CleanLearning
+    cl_adjusted = CleanLearning(LogisticRegression(max_iter=100), cv_n_folds=cv_n_folds)
+
+    # 2. Use the adjusted confidences to identify label issues
+    adjusted_label_issues = cl_adjusted.find_label_issues(X=train_texts, labels=train_labels, confident_joint=None, label_quality=adjusted_confidences)
+
+    # 3. Fit the model with the adjusted label issues
+    cl_adjusted.fit(X=train_texts, labels=train_labels, label_issues=adjusted_label_issues)
+
+    # 4. Predict using the retrained model
+    pred_labels_after = cl_adjusted.predict(test_texts)
+    acc_after = accuracy_score(test_labels, pred_labels_after)
+    print(f"Test accuracy after adjusting confidences: {acc_after}")
+
+    # Compare predictions
+    changed_predictions = np.sum(pred_labels_before != pred_labels_after)
+    print(f"Number of changed predictions: {changed_predictions}")
+
+    # Analyze impact on specific examples
+    if changed_predictions > 0:
+        changed_indices = np.where(pred_labels_before != pred_labels_after)[0]
+        for idx in changed_indices[:5]:  # Show first 5 changed predictions
+            print(f"\nExample {idx}:")
+            print(f"Original text: {original_test_texts[idx]}")
+            print(f"True label: {test_labels[idx]}")
+            print(f"Original prediction: {pred_labels_before[idx]}")
+            print(f"Adjusted prediction: {pred_labels_after[idx]}")
