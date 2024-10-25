@@ -17,8 +17,9 @@ from concurrent.futures import ThreadPoolExecutor
 import spacy
 
 # Load spaCy model for coherence
-nlp = spacy.load('en_core_web_md')
-
+nlp = spacy.load('en_core_web_sm')
+tool = language_tool_python.LanguageTool('en-US')
+spell = SpellChecker()
 
 
 def assess_lexical_quality(text):
@@ -28,21 +29,22 @@ def assess_lexical_quality(text):
     :param text: str, the text to assess
     :return: dict, a dictionary containing the spelling accuracy, grammar quality, readability, and topic coherence
     """
-    # Initialize tools
-    tool = language_tool_python.LanguageTool('en-US')
-    spell = SpellChecker()
 
     # Spelling accuracy
     words = text.split()
     misspelled = spell.unknown(words)
     spelling_accuracy = 1 - len(misspelled) / len(words)
 
+
+
     # Grammar quality
     matches = tool.check(text)
     grammar_quality = 1 - len(matches) / len(words)
 
+
     # Readability
     readability = textstat.flesch_reading_ease(text)
+
 
     # Topic coherence using spaCy
     doc = nlp(text)
@@ -78,7 +80,6 @@ def process_dataset_in_batches(dataset, batch_size=10):
             batch = dataset[i:i + batch_size]
             batch_results = list(executor.map(assess_lexical_quality, batch))
             results.extend(batch_results)
-    print(results)
     return results
 
 
