@@ -104,7 +104,7 @@ def encode_texts_in_batches(texts, transformer, batch_size=32):
 
 if __name__ == '__main__':
     # Load AG News data with a quarter of the dataset
-    train_labels, train_texts, test_labels, test_texts, vocab = load_ag_news_data(text_noise_level=0.1, fraction=0.005)
+    train_labels, train_texts, test_labels, test_texts, vocab = load_ag_news_data(text_noise_level=0.1, fraction=0.001)
     print("Loaded a quarter of the AG News dataset.")
 
     # Convert token IDs back to strings
@@ -157,20 +157,20 @@ if __name__ == '__main__':
     print(f"Original confidences - Min: {min(original_confidences)}, Max: {max(original_confidences)}, Mean: {np.mean(original_confidences)}")
     print(f"Adjusted confidences - Min: {min(adjusted_confidences)}, Max: {max(adjusted_confidences)}, Mean: {np.mean(adjusted_confidences)}")
 
-    # Update label issues with adjusted confidences
-    label_issues["label_quality"] = adjusted_confidences
-
     # Retrain the model using adjusted confidences
     # 1. Create a new instance of CleanLearning
     cl_adjusted = CleanLearning(LogisticRegression(max_iter=100), cv_n_folds=cv_n_folds)
 
-    # 2. Use the adjusted confidences to identify label issues
-    adjusted_label_issues = cl_adjusted.find_label_issues(X=train_texts, labels=train_labels, confident_joint=None, label_quality=adjusted_confidences)
+    # 2. Find label issues without specifying label quality
+    adjusted_label_issues = cl_adjusted.find_label_issues(X=train_texts, labels=train_labels)
 
-    # 3. Fit the model with the adjusted label issues
+    # 3. Update the label issues with our adjusted confidences
+    adjusted_label_issues['label_quality'] = adjusted_confidences
+
+    # 4. Fit the model with the adjusted label issues
     cl_adjusted.fit(X=train_texts, labels=train_labels, label_issues=adjusted_label_issues)
 
-    # 4. Predict using the retrained model
+    # 5. Predict using the retrained model
     pred_labels_after = cl_adjusted.predict(test_texts)
     acc_after = accuracy_score(test_labels, pred_labels_after)
     print(f"Test accuracy after adjusting confidences: {acc_after}")
