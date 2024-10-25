@@ -48,6 +48,30 @@ def get_lexical_quality_scores(texts):
 
     return lexical_quality_scores
 
+def adjust_confidence_with_lexical_quality(original_confidences, lexical_quality_scores, base_threshold=0.5):
+    """
+    Adjusts the confidence scores by incorporating the lexical quality scores.
+
+    :param original_confidences: list of float, the original confidence scores from the model
+    :param lexical_quality_scores: list of float, the lexical quality scores of the texts
+    :param base_threshold: float, the base threshold for confidence
+    :return: list of float, the adjusted confidence scores
+    """
+    adjusted_confidences = []
+
+    for original_confidence, lexical_quality_score in zip(original_confidences, lexical_quality_scores):
+        if lexical_quality_score < 0.5:
+            # Increase the risk of mislabeling for low-quality texts
+            adjusted_confidence = original_confidence * (1 - (0.5 - lexical_quality_score))
+        else:
+            # Lower the threshold for identifying label errors for high-quality texts
+            adjusted_confidence = original_confidence * (1 + lexical_quality_score)
+
+        # Ensure the adjusted confidence does not exceed 1 or drop below 0
+        adjusted_confidence = max(0, min(1, adjusted_confidence))
+        adjusted_confidences.append(adjusted_confidence)
+
+    return adjusted_confidences
 
 if __name__ == "__main__":
     # Example usage
