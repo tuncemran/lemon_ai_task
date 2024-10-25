@@ -104,7 +104,7 @@ def encode_texts_in_batches(texts, transformer, batch_size=32):
 
 if __name__ == '__main__':
     # Load AG News data with a quarter of the dataset
-    train_labels, train_texts, test_labels, test_texts, vocab = load_ag_news_data(fraction=0.005)
+    train_labels, train_texts, test_labels, test_texts, vocab = load_ag_news_data(fraction=0.01)
     print("Loaded a quarter of the AG News dataset.")
 
     # Convert token IDs back to strings
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     print("Calculated lexical quality scores for train texts.")
 
     # Define a classification model and use cleanlab to find potential label errors
-    model = LogisticRegression(max_iter=1)
+    model = LogisticRegression(max_iter=100)
     print("Defined a LogisticRegression model.")
     cv_n_folds = 5  # for efficiency; values like 5 or 10 will generally work better
 
@@ -157,7 +157,9 @@ if __name__ == '__main__':
 
     # Adjust confidence scores using lexical quality
     original_confidences = label_issues["label_quality"].to_numpy()
+    print(f"Original confidences: {original_confidences}")
     adjusted_confidences = adjust_confidence_with_lexical_quality(original_confidences, lexical_quality_scores)
+    print(f"Adjusted confidences: {adjusted_confidences}")
 
     # Update label issues with adjusted confidences
     label_issues["adjusted_label_quality"] = adjusted_confidences

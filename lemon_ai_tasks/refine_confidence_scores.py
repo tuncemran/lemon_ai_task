@@ -40,9 +40,10 @@ def get_lexical_quality_scores(texts):
 
     # Calculate a composite lexical quality score for each text
     # Quality score is 0 if the text is empty or contains only one sentence or spelling accuracy is below 0.5 or grammar quality is below 0.5
+    # removed topic coherence from the score
     lexical_quality_scores = [
         0 if not metrics or len(metrics) <= 1 or metrics['spelling_accuracy'] < 0.5 or metrics['grammar_quality'] < 0.5 or metrics['topic_coherence'] < 0.5
-        else (metrics['spelling_accuracy'] + metrics['grammar_quality'] + metrics['readability'] / 100 + metrics['topic_coherence']) / 4
+        else (metrics['spelling_accuracy'] + metrics['grammar_quality'] + metrics['readability'] / 100 ) / 3
         for metrics in quality_metrics
     ]
 
